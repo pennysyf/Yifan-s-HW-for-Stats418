@@ -1,1 +1,1 @@
-# Yifan-s-HW-for-Stats418
+# Yifan Sun's HW for Stats 418. 
