@@ -1,2 +1,2 @@
 In this homework, I ran some packages with LR,RF, and GBM. 
-
+First, for the raw data, the column I want to work with is leveled by ">50K" and "<=50K". Since the data might not be large enough for my later practise, I combined another set of data so that I have about 50000 obversations to work with. 
