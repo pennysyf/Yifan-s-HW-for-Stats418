@@ -1,0 +1,246 @@
+---
+title: "Yifan's HW3"
+author: "Yifan Sun"
+date: "May 19, 2017"
+output: html_document
+---
+
+
+###Data spliting. 
+```{r}
+adult1 <- read.table("~/adult.data", sep=",",header=F,col.names=c("age", "type_employer", "fnlwgt", "education", 
+                "education_num","marital", "occupation", "relationship", "race","sex",
+                "capital_gain", "capital_loss", "hr_per_week","country", "income"),
+        fill=FALSE,strip.white=T)
+adult2 <- read.table("~/adult.test", sep=",",skip = 1, header=F,col.names=c("age", "type_employer", "fnlwgt", "education", 
+                "education_num","marital", "occupation", "relationship", "race","sex",
+                "capital_gain", "capital_loss", "hr_per_week","country", "income"),
+        fill=FALSE,strip.white=T)
+adult2$income <- gsub(".","",adult2$income, fixed = TRUE)
+adult <- rbind(adult1, adult2)
+set.seed(123)
+N <- nrow(adult)
+idx <- sample(1:N, 0.6*N)
+adult_train <- adult[idx,]
+adult_test <- adult[-idx,]
+X <- Matrix::sparse.model.matrix(income ~ . - 1, data = adult)
+X_train <- X[idx,]
+X_test <- X[-idx,]
+```
+
+####Just cross vaildation
+```{r}
+library(gbm)
+adult_train_ynum <- adult_train
+adult_train_ynum$income <- ifelse(adult_train_ynum$income ==">50K",1,0)
+args(gbm)
+md <- gbm(income ~ ., data = adult_train_ynum, distribution = "bernoulli",
+          n.trees = 100, interaction.depth = 10, shrinkage = 0.3)
+# train err
+yhat <- predict(md, adult_train, n.trees = md$n.trees) 
+sum(ifelse(yhat>0,1,0)!=adult_train$spam)/nrow(adult_train)
+# test err
+yhat <- predict(md, adult_test, n.trees = md$n.trees) 
+sum(ifelse(yhat>0,1,0)!=adult_test$income)/nrow(adult_test)
+#5-fold cross-validation
+K <- 5
+folds <- sample(rep(1:K, nrow(adult_train)/K))
+table(folds)
+err_fold <- numeric(K)
+for (k in 1:K) {
+  adult_fold_train <- adult_train_ynum[folds!=k,]
+  adult_fold_test  <- adult_train_ynum[folds==k,]
+  md <- gbm(income ~ ., data = adult_fold_train, distribution = "bernoulli",
+          n.trees = 100, interaction.depth = 10, shrinkage = 0.3)
+  yhat <- predict(md, adult_fold_test, n.trees = md$n.trees)
+  err_fold[k] <- sum(ifelse(yhat>0,1,0)!=adult_fold_test$income)/nrow(adult_fold_test)}
+# cv err
+mean(err_fold)
+md <- gbm(income ~ ., data = adult_train_ynum, distribution = "bernoulli",
+          n.trees = 100, interaction.depth = 10, shrinkage = 0.3,
+          cv.folds = 5)
+gbm.perf(md, plot.it = TRUE)
+#The best cv iteration was 50. 
+#For the plot, the black curve is the train error. 
+md
+```
+
+
+###Try LR with glmnet
+```{r}
+library(readr)
+library(glmnet)
+library(ROCR)
+xfactors <- model.matrix(income ~ type_employer + education + marital + occupation + relationship + race + sex + country, data = adult_train)
+x <- as.matrix(data.frame(adult_train$age, adult_train$fnlwgt, adult_train$education_num, adult_train$capital_gain, adult_train$capital_loss, adult_train$hr_per_week, xfactors))
+cvglm <- cv.glmnet(x, adult_train$income, alpha = 1, family = "binomial")
+bestlambda <- cvglm$lambda.min
+bestlambda
+#Try some values before we use the best lambda value 0.0006523123.
+#When lambda = 0.
+system.time({md <- glmnet(X_train, adult_train$income, family = "binomial", lambda = 0)})
+phat <- predict(md, newx = X_test, type = "response")
+rocr_pred <- prediction(phat, adult_test$income)
+auclr <- performance(rocr_pred, "auc")@y.values[[1]]
+auclr
+plot(performance(rocr_pred, "err"), main = "Error Rate vs. Cutoff")
+plot(performance(rocr_pred, "tpr", "fpr"), main = "True pos. rate vs. False pos. rate", colorize=TRUE) 
+#When lambda = 0.1.
+system.time({md <- glmnet(X_train, adult_train$income, family = "binomial", lambda = 0.1)})
+phat <- predict(md, newx = X_test, type = "response")
+rocr_pred <- prediction(phat, adult_test$income)
+auclr01 <- performance(rocr_pred, "auc")@y.values[[1]]
+auclr01
+plot(performance(rocr_pred, "err"), main = "Error Rate vs. Cutoff")
+plot(performance(rocr_pred, "tpr", "fpr"), main = "True pos. rate vs. False pos. rate", colorize=TRUE)
+#When lambda = value of 'bestlambda'.
+system.time({md <- glmnet(X_train, adult_train$income, family = "binomial", lambda = bestlambda)})
+phat <- predict(md, newx = X_test, type = "response")
+rocr_pred <- prediction(phat, adult_test$income)
+auclrbest <- performance(rocr_pred, "auc")@y.values[[1]]
+auclrbest
+plot(performance(rocr_pred, "err"), main = "Error Rate vs. Cutoff")
+plot(performance(rocr_pred, "tpr", "fpr"), main = "True pos. rate vs. False pos. rate", colorize=TRUE)
+```
+
+###Try RF with xgboost
+```{r}
+library(xgboost)
+library(randomForest)
+system.time({n_proc <- parallel::detectCores()
+md <- xgboost(data = X_train, label = ifelse(adult_train$income=='>50K',1,0),
+nthread = n_proc, nround = 1, max_depth = 20,
+num_parallel_tree = 500, subsample = 0.632,
+colsample_bytree = 1/sqrt(length(X_train@x)/nrow(X_train)),
+save_period = NULL)})
+phat <- predict(md, newdata = X_test)
+rocr_pred <- prediction(phat, adult_test$income)
+aucrf <- performance(rocr_pred, "auc")@y.values[[1]]
+aucrf
+plot(performance(rocr_pred, "err"), main = "Error Rate vs. Cutoff")
+plot(performance(rocr_pred, "tpr", "fpr"), main = "True pos. rate vs. False pos. rate", colorize=TRUE)
+```
+
+####Now try it with larger depth
+```{r}
+md40 <- xgboost(data = X_train, label = ifelse(adult_train$income=='>50K',1,0),
+nthread = n_proc, nround = 1, max_depth = 40,
+num_parallel_tree = 500, subsample = 0.632,
+colsample_bytree = 1/sqrt(length(X_train@x)/nrow(X_train)),
+save_period = NULL)
+#The root mean square error is smaller than the value with smaller max_depth. 
+phat40 <- predict(md40, newdata = X_test)
+rocr_40 <- prediction(phat40, adult_test$income)
+aucrf40 <- performance(rocr_40, "auc")@y.values[[1]]
+aucrf40
+#aucrf40 < aucrf
+```
+
+####Try it with smaller number of columns. 
+```{r}
+mdnum <- xgboost(data = X_train, label = ifelse(adult_train$income=='>50K',1,0),
+nthread = n_proc, nround = 1, max_depth = 20,
+num_parallel_tree = 400, subsample = 0.632,
+colsample_bytree = 1/sqrt(length(X_train@x)/nrow(X_train)),
+save_period = NULL)
+#The rmse value is smaller than the one with larger value of num_parallel_tree. 
+phatnum <- predict(mdnum, newdata = X_test)
+rocr_num <- prediction(phatnum, adult_test$income)
+aucrfnum <- performance(rocr_num, "auc")@y.values[[1]]
+aucrfnum
+#aucrfnum > aucrf
+```
+####The value of auc would be larger when we have smaller number of trees and smaller value of depth. 
+
+```{r}
+dim(adult_train)
+dim(adult_test)
+md <- randomForest(income ~ ., data = adult_train, ntree = 50)
+md
+plot(md)
+phat <- predict(md, adult_test, type = "prob")[,">50K"]
+table(ifelse(phat>0.5,1,0), adult_test$income)
+#Test the accuracy of predicting income
+(14891 + 1288) / nrow(adult_test)
+#Compare to the auc value
+aucrf
+#When ntree = 100. 
+md100 <- randomForest(income ~ ., data = adult_train, ntree = 100)
+md100
+plot(md100)
+phat100 <- predict(md100, adult_test, type = "prob")[,">50K"]
+table(ifelse(phat100>0.5,1,0), adult_test$income)
+#Test the accuracy
+(14896 + 1266) / nrow(adult_test)
+#The accuracy of ntree = 50 is 0.828121, the accuracy of ntree = 100 is 0.8272509.
+#The auc value we got using the xgboost package is 0.919885. 
+```
+
+
+
+###Try GBM
+
+####CV for GBM 
+```{r}
+library(pROC)
+dxgb_train <- xgb.DMatrix(data = X_train, label = ifelse(adult_train$income=='>50K',1,0))
+dxgb_test <- xgb.DMatrix(data = X_test, label = ifelse(adult_test$income=='>50K',1,0))
+params <- list(booster = "gbtree", objective = "binary:logistic", eta = 0.3, gamma = 0, max_depth = 6, min_child_weight = 1, subsample = 1, colsample_bytree = 1)
+xgbcv <- xgb.cv( params = params, data = dxgb_train, nrounds = 100, nfold = 5, showsd = T, stratified = T, print.every.n = 10, early.stop.round = 20, maximize = F)
+#Best iteration = 44
+xgb1 <- xgb.train (params = params, data = dxgb_train, nrounds = 44, watchlist = list(val=dxgb_test,train=dxgb_train), print_every_n = 10, early_stop_round = 10, maximize = F , eval_metric = "error")
+xgbpred <- predict (xgb1,dxgb_test)
+xgbpred <- ifelse (xgbpred > 0.5,1,0)
+library(caret)
+at_income <- as.numeric(adult_test$income) - 1
+confusionMatrix (xgbpred, at_income)
+#The accuracy is 0.8749
+auccv <- roc(adult_test$income, xgbpred, mode = "prec_recall")
+ccv <- prediction(xgbpred, adult_test$income)
+acc <- performance(ccv, "auc")@y.values[[1]]
+acc
+#The auc value is 0.7976518. 
+```
+
+####From the cv of GBM, we use 44 for the nround. 
+```{r}
+dxgb_train <- xgb.DMatrix(data = X_train, label = ifelse(adult_train$income=='>50K',1,0))
+dxgb_test <- xgb.DMatrix(data = X_test, label = ifelse(adult_test$income=='>50K',1,0))
+system.time({
+n_proc <- parallel::detectCores()
+md <- xgb.train(data = dxgb_train, nthread = n_proc, objective = "binary:logistic", 
+nround = 44, max_depth = 20, eta = 0.1)})
+phat <- predict(md, newdata = X_test)
+rocr_pred <- prediction(phat, adult_test$income)
+aucgbm <- performance(rocr_pred, "auc")@y.values[[1]]
+aucgbm
+plot(performance(rocr_pred, "err"), main = "Error Rate vs. Cutoff")
+plot(performance(rocr_pred, "tpr", "fpr"), main = "True pos. rate vs. False pos. rate",colorize=TRUE)
+```
+
+####Now try with eta = 0.3. 
+```{r}
+md3 <- xgb.train(data = dxgb_train, nthread = n_proc, objective = "binary:logistic", 
+nround = 44, max_depth = 20, eta = 0.3)
+phat3 <- predict(md3, newdata = X_test)
+rocr_3 <- prediction(phat3, adult_test$income)
+aucgbm3 <- performance(rocr_3, "auc")@y.values[[1]]
+aucgbm3
+#The auc value is smaller while we change the learning rate from 0.1 to 0.3. 
+```
+
+####Now try with max_depth = 40. 
+```{r}
+md4 <- xgb.train(data = dxgb_train, nthread = n_proc, objective = "binary:logistic", 
+nround = 44, max_depth = 40, eta = 0.1)
+phat4 <- predict(md4, newdata = X_test)
+rocr_4 <- prediction(phat4, adult_test$income)
+aucgbm4 <- performance(rocr_4, "auc")@y.values[[1]]
+aucgbm4
+#The value of auc is getting smaller while we change the max_depth from 20 to 40. 
+```
+
+####In order to maximize the value of auc, we tend to have a smaller depth of trees and smaller learning rate. 
+
+
+
