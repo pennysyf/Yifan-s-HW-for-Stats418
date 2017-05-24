@@ -1,4 +1,4 @@
-In this homework, I ran some packages with LR,RF, and GBM. 
+ In this homework, I ran some packages with LR (logistic regression), RF (random forest), and GBM (generalized boosted regression models ). 
 
 First, for the raw data, the column I want to work with is leveled by ">50K" and "<=50K". Since the data might not be large enough for my later practise, I combined another set of data so that I have around 50000 obversations to work with. 
 
