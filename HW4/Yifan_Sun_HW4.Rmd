@@ -1,0 +1,462 @@
+---
+title: "Yifan's HW4 for Stat418"
+author: "Yifan Sun (UID:404878273)"
+date: "May 24, 2017"
+output: html_document
+---
+##Introduction.
+
+In the assignment, the data of ["Census Income"](https://archive.ics.uci.edu/ml/datasets/adult) was used to set up several models. It is "a set of reasonably clean records" (from the data set [description](https://archive.ics.uci.edu/ml/datasets/adult)) and has 14 attributes such as age, workclass, education, etc. For the assignment the column of income was considered to be the predicted variable (>50K or <=50K). The original rmd code and html result could be found on [github](https://github.com/pennysyf/Yifan-s-HW-for-Stats418/tree/master/HW4) and the README.md file would provide a direct link for the preview of html result. 
+
+This data has 48842 obversations and was spilted to be the **test and train datasets** with the ratio 4:6. The original data has two parts and in this assignment, I combined them into one dataset using function "rbind" and created a new csv file for later studies. 
+```{r}
+adult1 <- read.table("~/adult.data", sep=",",header=F,col.names=c("age", "type_employer", "fnlwgt", "education", 
+                "education_num","marital", "occupation", "relationship", "race","sex",
+                "capital_gain", "capital_loss", "hr_per_week","country", "income"),
+        fill=FALSE,strip.white=T)
+adult2 <- read.table("~/adult.test", sep=",",skip = 1, header=F,col.names=c("age", "type_employer", "fnlwgt", "education", 
+                "education_num","marital", "occupation", "relationship", "race","sex",
+                "capital_gain", "capital_loss", "hr_per_week","country", "income"),
+        fill=FALSE,strip.white=T)
+adult2$income <- gsub(".","",adult2$income, fixed = TRUE)
+adult <- rbind(adult1, adult2)
+write.csv(adult, file = "adult.csv", row.names = FALSE)
+```
+
+The new dataset still has 14 attributes and the classification variable "income".
+```{r}
+names(adult)
+head(adult, n = 5)
+```
+
+##Visualize the data. 
+####Age.
+
+It seems that the age variable would be a good predictor of income. 
+```{r}
+boxplot(adult$age ~ adult$income, main = "Age distribution for income >50K or <=50K")
+```
+
+####Type of employment variable. 
+
+It seems that the type_employer variable would be a good predictor of income.
+```{r}
+library(ggplot2)
+qplot(adult$income, fill = adult$type_employer, main = "Type of employment distribution for income >50K or <=50K")
+```
+
+####Fnlwgt variable
+
+It seems that the fnlwgt variable would not be a good predictor of income.
+```{r}
+summary(adult$fnlwgt)
+```
+
+
+####Education variable.
+
+It seems that the education variable would be a good predictor of income.
+```{r}
+qplot(adult$income, fill = adult$education, main = "Education distribution for income >50K or <=50K")
+```
+
+####Number of education variable.
+
+It seems that the education_num variable would be a good predictor of income. 
+```{r}
+boxplot(adult$education_num ~ adult$income, main = "Number of education distribution for income >50K or <=50K")
+```
+
+####Marital variable. 
+
+It seems that the marital variable would be a good predictor of income.
+```{r}
+qplot(adult$income, fill = adult$marital, main = "Marital distribution for income >50K or <=50K")
+```
+
+####Occupation variable. 
+
+It seems that the occupation variable would be a good predictor of income.
+```{r}
+qplot(adult$income, fill = adult$occupation, main = "Occupation distribution for income >50K or <=50K")
+```
+
+####Relationship variable. 
+
+It seems that the relationship variable would be a good predictor of income.
+```{r}
+qplot(adult$income, fill = adult$relationship, main = "Relationship distribution for income >50K or <=50K")
+```
+
+####Race variable. 
+
+It seems that the race variable would be a good predictor of income.
+```{r}
+qplot(adult$income, fill = adult$race, main = "Race distribution for income >50K or <=50K")
+```
+
+####Sex variable. 
+It seems that the sex variable would not be a good predictor of income.
+```{r}
+table(adult[,c("sex", "income")])
+```
+
+####Capital gain variable. 
+
+It seems that the capital_gain variable would not be a good predictor of income. 
+```{r}
+plot(adult$hr_per_week ~ adult$capital_gain, main = "Capital gain distribution for income >50K or <=50K")
+```
+
+####Capital loss variable. 
+
+It seems that the capital_loss variable would not be a good predictor of income. 
+```{r}
+plot(adult$hr_per_week ~ adult$capital_loss, main = "Capital loss distribution for income >50K or <=50K")
+```
+
+####Hours per week variable.
+
+It seems that the hr_per_week variable would be a good predictor of income. 
+```{r}
+boxplot(adult$hr_per_week ~ adult$income, main = "Hours per week distribution for income >50K or <=50K")
+```
+
+####Country variable. 
+
+It seems that the country variable would be a good predictor of income.
+```{r}
+qplot(adult$income, fill = adult$country, main = "Country distribution for income >50K or <=50K")
+```
+
+
+##Analysis of different models. 
+
+####Logistic regression
+
+From the [last assignment](https://htmlpreview.github.io/?https://github.com/pennysyf/Yifan-s-HW-for-Stats418/blob/master/HW3/Yifan_Sun_s_HW3.html), the bestlambda value is 0.0006523123. 
+
+The first model was using lambda = 0, the auc is 0.9058254,system time of elapsed is 0.45. 
+
+![lambda = 0,Error Rate vs. Cutoff](C:\Users\Penny\Dropbox\Stats 418\hw3\LR1-1.png)
+
+![lambda = 0,True pos. rate vs. False pos. rate](C:\Users\Penny\Dropbox\Stats 418\hw3\LR1-2.png)
+
+The second model was using lambda = 0.1, the auc is 0.8518726, system time of elapsed is 0.03. 
+
+![lambda = 0.1,Error Rate vs. Cutoff](C:\Users\Penny\Dropbox\Stats 418\hw3\LR2-1.png)
+
+![lambda = 0.1,True pos. rate vs. False pos. rate](C:\Users\Penny\Dropbox\Stats 418\hw3\LR2-2.png)
+
+The third model was using lambda = bestlambda, the auc is 0.9061721, system time of elapsed is 0.27. 
+
+![lambda = bestlambda,Error Rate vs. Cutoff](C:\Users\Penny\Dropbox\Stats 418\hw3\LR3-1.png)
+
+![lambda = bestlambda,True pos. rate vs. False pos. rate](C:\Users\Penny\Dropbox\Stats 418\hw3\LR3-2.png)
+#####From the above models, when the lambda uses the best value we got from the cross-vaildation, the auc value becomes the highest among these and the system time is short, and we use the auc to check for goodness. The ROC curve shows the true pos. rate vs. the false pos. rate. (known as sensitivity and specificity, from [wikipedia](https://en.wikipedia.org/wiki/Sensitivity_and_specificity))
+
+####RF models
+
+For the randomForest models, I tried some models with different parameters. 
+
+The first model has max_depth = 20, num_parallel_tree = 500. The train-rmse is 0.426952, the system time of elapsed is 9.17, the auc is 0.920182. 
+
+![max_depth = 20,Error Rate vs. Cutoff](C:\Users\Penny\Dropbox\Stats 418\hw3\RF1-1.png)
+
+![max_depth = 20,True pos. rate vs. False pos. rate](C:\Users\Penny\Dropbox\Stats 418\hw3\RF1-2.png)
+
+The second model has max_depth = 60, num_parallel_tree = 500. The train-rmse is 0.421498, the auc is 0.920182. 
+
+![max_depth = 60,Error Rate vs. Cutoff](C:\Users\Penny\Dropbox\Stats 418\hw3\RF2-1.png)
+
+![max_depth = 60,True pos. rate vs. False pos. rate](C:\Users\Penny\Dropbox\Stats 418\hw3\RF2-2.png)
+
+The third model has max_depth = 20, num_parallel_tree = 400. The train-rmse is 0.426290, the auc is 0.9182044. 
+
+![num_parallel_tree = 400,Error Rate vs. Cutoff](C:\Users\Penny\Dropbox\Stats 418\hw3\RF3-1.png)
+
+![num_parallel_tree = 400,True pos. rate vs. False pos. rate](C:\Users\Penny\Dropbox\Stats 418\hw3\RF3-2.png)
+
+#####From the three models, the value of auc would be larger when we have smaller number of trees and smaller value of depth. Now run the table to calculate the accuracy using the function "randomForest". 
+
+The first model has ntrees = 50, the accuracy of predicting income is 0.8271997, comparing to the auc = 0.919111 it is smaller. 
+
+![ntrees = 50](C:\Users\Penny\Dropbox\Stats 418\hw3\RFMD1.png)
+
+The second model has ntrees = 100, the accuracy of predicting income is 0.8255618, it is still smaller than the auc. 
+
+![ntrees = 100](C:\Users\Penny\Dropbox\Stats 418\hw3\RFMD2.png)
+
+#####Wwe use the auc to check for goodness. The ROC curve shows the true pos. rate vs. the false pos. rate. (known as sensitivity and specificity, from [wikipedia](https://en.wikipedia.org/wiki/Sensitivity_and_specificity))
+
+
+##GBM models
+
+First Iused the function xgb.cv to find the best iteration = 46, this would be used as the value of parameter "nrounds". 
+
+The first model has max_depth = 20, eta = 0.1. The system time of elapsed is 1.34, the auc is 0.919518. 
+
+![max_depth = 20, eta = 0.1, Error Rate vs. Cutoff](C:\Users\Penny\Dropbox\Stats 418\hw3\GBM2-1.png)
+
+![max_depth  =20, eta = 0.1,True pos. rate vs. False pos. rate](C:\Users\Penny\Dropbox\Stats 418\hw3\GBM2-2.png)
+
+The second model has max_depth = 20, eta = 0.3. The auc is 0.9172211. 
+
+![max_depth = 20, eta = 0.3, Error Rate vs. Cutoff](C:\Users\Penny\Dropbox\Stats 418\hw3\GBM3-1.png)
+
+![max_depth = 20, eta = 0.3,True pos. rate vs. False pos. rate](C:\Users\Penny\Dropbox\Stats 418\hw3\GBM3-2.png)
+
+The third model has max_depth = 40, eta = 0.1. The auc is 0.9145575. 
+
+![max_depth = 40, eta = 0.1, Error Rate vs. Cutoff](C:\Users\Penny\Dropbox\Stats 418\hw3\GBM4-1.png)
+
+![max_depth = 40, eta = 0.1,True pos. rate vs. False pos. rate](C:\Users\Penny\Dropbox\Stats 418\hw3\GBM4-2.png)
+
+#####In order to maximize the value of auc, we tend to have a smaller depth of trees and smaller learning rate.
+
+#####We use the auc to check for goodness. The ROC curve shows the true pos. rate vs. the false pos. rate. (known as sensitivity and specificity, from [wikipedia](https://en.wikipedia.org/wiki/Sensitivity_and_specificity))
+
+
+##NN in h2o
+
+####Playing with the parameters. (activation, hidden, epochs, etc.)
+
+```{r}
+library(h2o)
+h2o.init(nthreads=-1)
+adultdata <- h2o.importFile("adult.csv")
+set.seed(123)
+N <- nrow(adult)
+idx <- sample(1:N, 0.6*N)
+adult_train <- adult[idx,]
+adult_test <- adult[-idx,]
+X <- Matrix::sparse.model.matrix(income ~ . - 1, data = adult)
+X_train <- X[idx,]
+X_test <- X[setdiff(1:N,idx),]
+```
+
+
+The first model has The system time of elapsed 25.09, the auc is 0.908157. 
+
+```{r}
+dx_split <- h2o.splitFrame(adultdata, ratios = c(0.6,0.2), seed = 123)
+dx_train <- dx_split[[1]]
+dx_valid <- dx_split[[2]]
+dx_test <- dx_split[[3]]
+Xnames <- names(dx_train)[which(names(dx_train)!="income")]
+system.time({
+md <- h2o.deeplearning(x = Xnames, y = "income", training_frame = dx_train, validation_frame = dx_valid,
+## DEFAULT: activation = "Rectifier", hidden = c(200,200), 
+epochs = 100, stopping_rounds = 2, stopping_metric = "AUC", stopping_tolerance = 0)})
+h2o.performance(md, dx_test)@metrics$AUC
+plot(h2o.performance(md, dx_test), type = "roc")
+```
+
+The second model has the system time of elapsed 26.61, the auc is 0.913177. 
+
+```{r}
+system.time({
+md1 <- h2o.deeplearning(x = Xnames, y = "income", training_frame = dx_train, validation_frame = dx_valid,
+activation = "Rectifier", hidden = c(50,50,50,50), input_dropout_ratio = 0.2,
+epochs = 100, stopping_rounds = 2, stopping_metric = "AUC", stopping_tolerance = 0)})
+h2o.performance(md1, dx_test)@metrics$AUC
+plot(h2o.performance(md1, dx_test), type = "roc")
+```
+
+The third model.
+
+```{r}
+system.time({
+md2 <- h2o.deeplearning(x = Xnames, y = "income", training_frame = dx_train, validation_frame = dx_valid,
+activation = "Rectifier", hidden = c(50,50,50,50), 
+epochs = 100, stopping_rounds = 2, stopping_metric = "AUC", stopping_tolerance = 0)})
+h2o.performance(md2, dx_test)@metrics$AUC
+plot(h2o.performance(md2, dx_test), type = "roc")
+```
+
+The forth model. 
+
+```{r}
+system.time({
+md3 <- h2o.deeplearning(x = Xnames, y = "income", training_frame = dx_train, validation_frame = dx_valid,
+activation = "Rectifier", hidden = c(20,20),
+epochs = 100, stopping_rounds = 2, stopping_metric = "AUC", stopping_tolerance = 0)})
+h2o.performance(md3, dx_test)@metrics$AUC
+plot(h2o.performance(md3, dx_test), type = "roc")
+```
+
+The fifth model.
+
+```{r}
+system.time({
+md5 <- h2o.deeplearning(x = Xnames, y = "income", training_frame = dx_train, validation_frame = dx_valid,
+activation = "Rectifier", hidden = c(5),
+epochs = 100, stopping_rounds = 2, stopping_metric = "AUC", stopping_tolerance = 0)})
+h2o.performance(md5, dx_test)@metrics$AUC
+plot(h2o.performance(md5, dx_test), type = "roc")
+```
+
+The sixth model.
+
+```{r}
+system.time({
+md7 <- h2o.deeplearning(x = Xnames, y = "income", training_frame = dx_train, validation_frame = dx_valid,
+activation = "Rectifier", hidden = c(200,200), l1 = 1e-5, l2 = 1e-5, 
+epochs = 100, stopping_rounds = 2, stopping_metric = "AUC", stopping_tolerance = 0)})
+h2o.performance(md7, dx_test)@metrics$AUC
+plot(h2o.performance(md7, dx_test), type = "roc")
+```
+
+The 7th model. 
+
+```{r}
+system.time({
+md8 <- h2o.deeplearning(x = Xnames, y = "income", training_frame = dx_train, validation_frame = dx_valid,
+activation = "Rectifier", hidden = c(200,200), 
+rho = 0.95, epsilon = 1e-06,  ## default:  rho = 0.99, epsilon = 1e-08
+epochs = 100, stopping_rounds = 2, stopping_metric = "AUC", stopping_tolerance = 0)})
+h2o.performance(md8, dx_test)@metrics$AUC
+plot(h2o.performance(md8, dx_test), type = "roc")
+```
+
+The 8th model. 
+
+```{r}
+system.time({
+md11 <- h2o.deeplearning(x = Xnames, y = "income", training_frame = dx_train, validation_frame = dx_valid,
+activation = "Rectifier", hidden = c(200,200), 
+rho = 0.999, epsilon = 1e-06,  ## default:  rho = 0.99, epsilon = 1e-08
+epochs = 100, stopping_rounds = 2, stopping_metric = "AUC", stopping_tolerance = 0)})
+h2o.performance(md11, dx_test)@metrics$AUC
+plot(h2o.performance(md11, dx_test), type = "roc")
+```
+
+The 9th model.
+
+```{r}
+system.time({
+md13 <- h2o.deeplearning(x = Xnames, y = "income", training_frame = dx_train, validation_frame = dx_valid,
+activation = "Rectifier", hidden = c(200,200), 
+adaptive_rate = FALSE, ## default: rate = 0.005, rate_decay = 1, momentum_stable = 0,
+epochs = 100, stopping_rounds = 2, stopping_metric = "AUC", stopping_tolerance = 0)})
+h2o.performance(md13, dx_test)@metrics$AUC
+plot(h2o.performance(md13, dx_test), type = "roc")
+```
+
+The 10th model. 
+
+```{r}
+system.time({
+md14 <- h2o.deeplearning(x = Xnames, y = "income", training_frame = dx_train, validation_frame = dx_valid,
+activation = "Rectifier", hidden = c(200,200), 
+adaptive_rate = FALSE, rate = 0.001, momentum_start = 0.5, momentum_ramp = 1e5, momentum_stable = 0.99,
+epochs = 100, stopping_rounds = 2, stopping_metric = "AUC", stopping_tolerance = 0)})
+h2o.performance(md14, dx_test)@metrics$AUC
+plot(h2o.performance(md14, dx_test), type = "roc")
+```
+
+The 11th model. 
+
+```{r}
+system.time({
+md18 <- h2o.deeplearning(x = Xnames, y = "income", training_frame = dx_train, validation_frame = dx_valid,
+activation = "Rectifier", hidden = c(200,200), 
+adaptive_rate = FALSE, rate = 0.01, rate_annealing = 1e-05, 
+momentum_start = 0.5, momentum_ramp = 1e5, momentum_stable = 0.9,
+epochs = 100, stopping_rounds = 2, stopping_metric = "AUC", stopping_tolerance = 0)})
+h2o.performance(md18, dx_test)@metrics$AUC
+plot(h2o.performance(md18, dx_test), type = "roc")
+```
+
+######These models all have auc higher than 0.9, which means that the accuracy of the prediction is great. We use the auc to check for goodness. The ROC curve shows the true pos. rate vs. the false pos. rate. (known as sensitivity and specificity, from [wikipedia](https://en.wikipedia.org/wiki/Sensitivity_and_specificity))
+
+
+
+##Ensembling various models
+
+####Playing with the parameters. 
+
+The first model. 
+
+```{r}
+new_split <- h2o.splitFrame(adultdata, ratios = 0.7, seed = 123)
+new_train <- new_split[[1]]
+new_test <- new_split[[2]]
+Newnames <- setdiff(names(new_train),"income")
+system.time({
+mdev1 <- h2o.glm(x = Xnames, y = "income", training_frame = dx_train, 
+family = "binomial", alpha = 1, lambda = 0,
+seed = 123,nfolds = 5, fold_assignment = "Modulo", keep_cross_validation_predictions = TRUE)})
+h2o.auc(h2o.performance(mdev1, dx_test))
+plot(h2o.performance(mdev1, dx_test), type = "roc")
+```
+
+The second model.
+
+```{r}
+system.time({
+mdev2 <- h2o.randomForest(x = Xnames, y = "income", training_frame = dx_train, 
+ntrees = 300, seed = 123,
+nfolds = 5, fold_assignment = "Modulo", keep_cross_validation_predictions = TRUE)})
+h2o.auc(h2o.performance(mdev2, dx_test))
+plot(h2o.performance(mdev2, dx_test), type = "roc")
+```
+
+The third model. 
+
+```{r}
+system.time({
+mdev3 <- h2o.gbm(x = Xnames, y = "income", training_frame = dx_train, distribution = "bernoulli", ntrees = 200, max_depth = 10, learn_rate = 0.1, 
+nbins = 100, seed = 123,
+nfolds = 5, fold_assignment = "Modulo", keep_cross_validation_predictions = TRUE)})
+h2o.auc(h2o.performance(mdev3, dx_test))
+plot(h2o.performance(mdev3, dx_test), type = "roc")
+```
+
+The forth model.
+
+```{r}
+system.time({
+mdev4 <- h2o.deeplearning(x = Xnames, y = "income", training_frame = dx_train, 
+epochs = 5, seed = 123,
+nfolds = 5, fold_assignment = "Modulo", keep_cross_validation_predictions = TRUE)})
+h2o.auc(h2o.performance(mdev4, dx_test))
+plot(h2o.performance(mdev4, dx_test), type = "roc")
+```
+
+The fifth model. 
+
+```{r}
+md_ens <- h2o.stackedEnsemble(x = Xnames, y = "income", training_frame = dx_train, 
+base_models = list(mdev1@model_id, mdev2@model_id, mdev3@model_id, mdev4@model_id))
+h2o.auc(h2o.performance(md_ens, dx_test))
+```
+
+The coefficients table of ensembling various models. 
+
+```{r}
+h2o.getModel(md_ens@model$metalearner$name)@model$coefficients_table
+```
+
+
+##Comparing the system time. 
+
+For all the models above, the auc looks pretty good that most of them are over 0.8. But the system time are very different. Below is a table that lists some models using different methods, with system time and auc values. 
+
+
+  Methods     | System Time |  AUC         |
+------------- | ----------- | ------------ |
+    LR        | 0.27        |  0.9061721   |
+    RF        | 9.17        |  0.919111    |
+    GBM       | 1.34        |  0.919518    |
+    NN in h2o | 25.09       |  0.910021    |
+ RandomSearch | 87.64       |  0.9207577   |
+    EVM       | 26.69       |  0.923805    |
+    
+The EVM model has the highest auc value but the system time takes longer than some other models. 
+
+##Conclusion
+
+####For the cost-benefit analysis, we would compare the system time and auc that each model takes. The less system time, the higher the auc value, the better the model is. From the table, it is easy to find that the GBM model has a high auc that is around 0.92 and short system time that is around 1.3. In order to benefit most from the models, the GBM model should be the prior method to use for predicting the income of data adult. 
+
+####For most of the time (>90%), our predict model would classified the income correctly. The prediction models perform well. 
