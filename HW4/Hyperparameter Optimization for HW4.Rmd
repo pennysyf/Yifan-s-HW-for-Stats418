@@ -1,0 +1,57 @@
+---
+title: "Hyperparameter Optimization for HW4"
+author: "Yifan Sun"
+date: "June 6, 2017"
+output: html_document
+---
+
+```{r}
+adult1 <- read.table("~/adult.data", sep=",",header=F,col.names=c("age", "type_employer", "fnlwgt", "education", 
+                "education_num","marital", "occupation", "relationship", "race","sex",
+                "capital_gain", "capital_loss", "hr_per_week","country", "income"),
+        fill=FALSE,strip.white=T)
+adult2 <- read.table("~/adult.test", sep=",",skip = 1, header=F,col.names=c("age", "type_employer", "fnlwgt", "education", 
+                "education_num","marital", "occupation", "relationship", "race","sex",
+                "capital_gain", "capital_loss", "hr_per_week","country", "income"),
+        fill=FALSE,strip.white=T)
+adult2$income <- gsub(".","",adult2$income, fixed = TRUE)
+adult <- rbind(adult1, adult2)
+library(h2o)
+h2o.init(nthreads=-1)
+adultdata <- h2o.importFile("adult.csv")
+dx_split <- h2o.splitFrame(adultdata, ratios = c(0.6,0.2), seed = 123)
+dx_train <- dx_split[[1]]
+dx_valid <- dx_split[[2]]
+dx_test <- dx_split[[3]]
+Xnames <- names(dx_train)[which(names(dx_train)!="income")]
+```
+
+
+####Hyperparameter optimization
+```{r}
+hyper_params <- list( ntrees = 10000,  ## early stopping
+                     max_depth = 5:15, 
+                     min_rows = c(1,3,10,30,100),
+                     learn_rate = c(0.01,0.03,0.1),  
+                     learn_rate_annealing = c(0.99,0.995,1,1),
+                     sample_rate = c(0.4,0.7,1,1),
+                     col_sample_rate = c(0.7,1,1),
+                     nbins = c(30,100,300),
+                     nbins_cats = c(64,256,1024))
+search_criteria <- list( strategy = "RandomDiscrete",
+                        max_runtime_secs = 600,
+                        max_models = 100)
+system.time({
+  mds <- h2o.grid(algorithm = "gbm", grid_id = "grd",
+                  x = Xnames, y = "income", training_frame = dx_train,
+                  validation_frame = dx_valid,
+                  hyper_params = hyper_params,
+                  search_criteria = search_criteria,
+                  stopping_metric = "AUC", stopping_tolerance = 1e-3, stopping_rounds = 2,
+                  seed = 123)})
+mds_sort <- h2o.getGrid(grid_id = "grd", sort_by = "auc", decreasing = TRUE)
+summary(mds_sort)
+md_best <- h2o.getModel(mds_sort@model_ids[[1]])
+summary(md_best)
+h2o.auc(h2o.performance(md_best, dx_test))
+```
